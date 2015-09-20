@@ -119,6 +119,7 @@ def iterativeDeepeningSearch(problem):
     from util import Stack
     from util import Counter
     from game import Actions
+    from game import GameStateData
     from searchAgents import PositionSearchProblem
     """
     Perform DFS with increasingly larger depth.
@@ -133,7 +134,7 @@ def iterativeDeepeningSearch(problem):
         current_board_state=problem.getStartState()
         list_of_actions=Stack()
         seen_game_states=Counter()
-        seen_game_states[1] = current_board_state
+        seen_game_states.update({hash(current_board_state): current_board_state})
         while(current_max_depth >= current_depth):
             move_made_this_iteration=False
             current_possible_actions = PositionSearchProblem.getActions(problem,current_board_state)
@@ -146,7 +147,7 @@ def iterativeDeepeningSearch(problem):
                             #make the move and update the problem
                             list_of_actions.push(current_possible_actions[i])
                             current_board_state=possible_new_board_state
-                            seen_game_states.update({len(seen_game_states)+1 : current_board_state})
+                            seen_game_states.update({hash(current_board_state): current_board_state})
                             #seen_game_states[seen_game_states.argMax()+1] = current_board_state
                             move_made_this_iteration=True
                             current_depth+=1
@@ -165,11 +166,100 @@ def iterativeDeepeningSearch(problem):
         current_max_depth+=1
         current_depth=0
 
-
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    from util import PriorityQueue
+    from util import PriorityQueueWithFunction
+    from util import Stack
+    from util import Counter
+    from game import Actions
+    from searchAgents import PositionSearchProblem
+
+    #initialization
+    game_states_visited_plus_path_to_them=Counter()
+    current_board_state=problem.getStartState()
+    current_list_of_moves=Stack()
+    game_states_visited_plus_path_to_them[hash(current_board_state)] = (current_board_state,current_list_of_moves)
+
+    #the priority queue is a list of actions rather than games states.
+    possible_states_to_expand=PriorityQueue()
+
+    #initialize priority queue---must have tuples of the gamestate plus the action
+    current_possible_actions = PositionSearchProblem.getActions(problem,current_board_state)
+    for i in range(len(current_possible_actions)):
+        possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
+        priority=heuristic(possible_new_board_state) + 1
+        possible_states_to_expand.push((current_board_state,current_possible_actions[i]), priority * -1)
+
+
+    while(not possible_states_to_expand.isEmpty()):
+        #(current board state + a direction)
+        board_action_tuple=possible_states_to_expand.pop()
+
+        #we set the current board and the action we are about to take
+        current_board_state = board_action_tuple[0]
+        current_direction = board_action_tuple[1]
+
+        #complete the move to get the new board state to explore
+        new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_direction)
+
+        #we must get the list of moves used to get to the current board first
+        current_list_of_moves = game_states_visited_plus_path_to_them.get(hash[current_board_state])[1]
+
+        #now we clone that stack and add the new move to it
+        current_list_of_moves = current_list_of_moves.clone()
+        current_list_of_moves.push(current_direction)
+
+        #TODO: check if that gamestate already exists,
+        #if it does not exist then merely update the dictionary
+        if(hash(current_state) not in game_states_visited_plus_path_to_them):
+             #now we create a new tuple with the new_board_state_and the list of moves we used to get ther
+            #and we add that tuple to the list of visited game boards
+            game_states_visited_plus_path_to_them.update({hash(current_board_state) : (new_board_state,current_list_of_moves)})
+        else:
+            if(len(game_states_visited_plus_path_to_them.get(hash(current_board_state))[1].list) < len(current_list_of_moves.list)):
+                game_states_visited_plus_path_to_them.update({hash(current_board_state) : (new_board_state,current_list_of_moves)})
+
+
+        #now we need to search out all the possible new moves and add it to the priorityque
+        current_possible_actions = PositionSearchProblem.getActions(problem,new_board_state)
+        for i in range(len(current_possible_actions)):
+            possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
+            if(hash(possible_new_board_state) != hash(current_board_state)):
+                priority=heuristic(possible_new_board_state) + current_list_of_moves
+                possible_states_to_expand.push((new_board_state,current_possible_actions[i]), priority * -1)
+        # possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
+        # game_states_visited.update({len(seen_game_states)+1 : current_board_state})
+        # current_list_of_moves.push(current_possible_actions[i])
+
+
+    """
+    -first add the initial board state to the list of seen board states (a dictionary)
+    -add a stack to an overlapping dictionary of moves used to get to that board state
+    while(true)
+        create a list of possible moves and calculate the values for each of those new board states
+            -create priority que of every move by looking at all every board states
+            -the number will be how many moves from the start, plus the necessary heuristic
+        choose the first best possible move of that list of moves and check if you can expand it out.
+            to check if you can expand it out
+                -add the new board state to the list of seen board states
+                    -if that board state does not exists
+                        -take the stack of moves used to get to that point, from the previous board state
+                        -add the new move, and then add the stack of moves + the board state to the dictionary
+                        -then break out of the while loop and take the next node from the prioritQueue
+                        -also take that new board state we just found and
+                            -find the moves around it, and add those new possible moves to the priorityqueue
+                    -else if that board state already exists then compare heights
+                        -compare the associated stacks with the old list of moves and new list of moves
+                            used to get to that board state
+                        if the new list of moves is shorter
+                            -then update that stack with the new stack
+                        else if the old list of moves is shorter
+                            -you do nothing
+            else if you can't expand it out
+                -don't worry about it, you still popped that move, now try the next possible move
+    """
 
 # Abbreviations
 bfs = breadthFirstSearch
