@@ -173,28 +173,43 @@ def aStarSearch(problem, heuristic=nullHeuristic):
     from util import PriorityQueueWithFunction
     from util import Stack
     from util import Counter
-    from game import Actions
+
+    import copy
     from searchAgents import PositionSearchProblem
+
 
     #initialization
     game_states_visited_plus_path_to_them=Counter()
     current_board_state=problem.getStartState()
-    current_list_of_moves=Stack()
+    current_list_of_moves=[]
     game_states_visited_plus_path_to_them[hash(current_board_state)] = (current_board_state,current_list_of_moves)
 
-    #the priority queue is a list of actions rather than games states.
+    #the priority queue is a list of games state action pairs
+    #by gamestates I mean the old game state that has already been expanded.
     possible_states_to_expand=PriorityQueue()
 
-    #initialize priority queue---must have tuples of the gamestate plus the action
+    #a list of possible actions that can be taken from the current board
     current_possible_actions = PositionSearchProblem.getActions(problem,current_board_state)
+    print('here is what the board state looks like')
+    print(current_board_state)
+    #we now initialize the priorityque with a list of boardstate,action pairs
+    #the priority is set internally but we could write a lamda function for it.
     for i in range(len(current_possible_actions)):
         possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
-        priority=heuristic(possible_new_board_state) + 1
+        priority=heuristic(possible_new_board_state,problem) + 1
         possible_states_to_expand.push((current_board_state,current_possible_actions[i]), priority * -1)
 
+    print('initial set of possible move pairs')
+    print('the priorityqueu itself')
+    print(possible_states_to_expand.heap)
 
+
+    #we now expand each move, check if it is the goal state, if it is the goal state
+    #we finish, else we find all surrounding moves and add them to the list of possible nodes
     while(not possible_states_to_expand.isEmpty()):
+
         #(current board state + a direction)
+        #pop the best possible move from the stack
         board_action_tuple=possible_states_to_expand.pop()
 
         #we set the current board and the action we are about to take
@@ -204,30 +219,37 @@ def aStarSearch(problem, heuristic=nullHeuristic):
         #complete the move to get the new board state to explore
         new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_direction)
 
-        #we must get the list of moves used to get to the current board first
-        current_list_of_moves = game_states_visited_plus_path_to_them.get(hash[current_board_state])[1]
-
+        #we must get the list of moves used to get to the current board state first
+        current_list_of_moves = game_states_visited_plus_path_to_them.get(hash(current_board_state))[1]
+        print(current_list_of_moves)
         #now we clone that stack and add the new move to it
-        current_list_of_moves = current_list_of_moves.clone()
-        current_list_of_moves.push(current_direction)
+        new_list_of_moves = copy.copy(current_list_of_moves)
+        new_list_of_moves.append(current_direction)
 
-        #TODO: check if that gamestate already exists,
+        #check if the new_board_state wins the game
+        if(PositionSearchProblem.goalTest(problem, new_board_state)):
+            return new_list_of_moves
+
+        #check if that gamestate already exists,
         #if it does not exist then merely update the dictionary
-        if(hash(current_state) not in game_states_visited_plus_path_to_them):
-             #now we create a new tuple with the new_board_state_and the list of moves we used to get ther
+        if(hash(new_board_state) not in game_states_visited_plus_path_to_them):
+            #now we create a new tuple with the new_board_state_and the list of moves we used to get ther
             #and we add that tuple to the list of visited game boards
-            game_states_visited_plus_path_to_them.update({hash(current_board_state) : (new_board_state,current_list_of_moves)})
+            game_states_visited_plus_path_to_them.update({hash(new_board_state) : (new_board_state,new_list_of_moves)})
         else:
-            if(len(game_states_visited_plus_path_to_them.get(hash(current_board_state))[1].list) < len(current_list_of_moves.list)):
-                game_states_visited_plus_path_to_them.update({hash(current_board_state) : (new_board_state,current_list_of_moves)})
+            old_number_of_moves_board_state = len(game_states_visited_plus_path_to_them.get(hash(current_board_state))[1])
+            if(old_number_of_moves_board_state < len(current_list_of_moves)):
+                game_states_visited_plus_path_to_them.update({hash(current_board_state) : (new_board_state,new_list_of_moves)})
 
 
         #now we need to search out all the possible new moves and add it to the priorityque
+        #first pull up a list of actions we can make from the new board state
         current_possible_actions = PositionSearchProblem.getActions(problem,new_board_state)
+        #check each move and add it to the priorityqueue
         for i in range(len(current_possible_actions)):
-            possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
+            possible_new_board_state = PositionSearchProblem.getResult(problem,new_board_state,current_possible_actions[i])
             if(hash(possible_new_board_state) != hash(current_board_state)):
-                priority=heuristic(possible_new_board_state) + current_list_of_moves
+                priority=heuristic(possible_new_board_state,problem) + len(new_list_of_moves)+1
                 possible_states_to_expand.push((new_board_state,current_possible_actions[i]), priority * -1)
         # possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
         # game_states_visited.update({len(seen_game_states)+1 : current_board_state})
