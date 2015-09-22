@@ -284,6 +284,12 @@ class CornersProblem(search.SearchProblem):
     You must select a suitable state space and successor function
     """
 
+    """
+    the abstract state looks like
+    ((pacmanPosition),(cornersReached))
+    pacmanPosition
+    """
+
     def __init__(self, startingGameState):
         """
         Stores the walls, pacman's starting position and corners.
@@ -299,6 +305,9 @@ class CornersProblem(search.SearchProblem):
         # Please add any code here which you would like to use
         # in initializing the problem
         "*** YOUR CODE HERE ***"
+        #the goal state
+        self.goal=(True,True,True,True)
+        self.startState= (self.startingPosition, (False,False,False,False))
 
 
     def getStartState(self):
@@ -307,14 +316,14 @@ class CornersProblem(search.SearchProblem):
         space)
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.startState
 
     def goalTest(self, state):
         """
         Returns whether this search state is a goal state of the problem.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return state[1] == self.goal
 
     def getActions(self, state):
         """
@@ -345,6 +354,20 @@ class CornersProblem(search.SearchProblem):
         #   hitsWall = self.walls[nextx][nexty]
 
         "*** YOUR CODE HERE ***"
+        x,y = state[0]
+        dx, dy = Actions.directionToVector(action)
+        nextx, nexty = int(x + dx), int(y + dy)
+        if (not self.walls[nextx][nexty]) and (not self.walls[nextx][nexty]):
+            new_corner_boolean_list = list(state[1])
+            for i in range(4):
+                if(self.corners[i] == (nextx,nexty)):
+                    new_corner_boolean_list[i]=True
+            nextState = ((nextx, nexty),tuple(new_corner_boolean_list))
+            return nextState
+        else:
+            warnings.warn("Warning: checking the result of an invalid state, action pair.")
+            return state
+
 
     def getCost(self, state, action):
         """Given a state and an action, returns a cost of 1, which is

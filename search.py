@@ -120,7 +120,6 @@ def iterativeDeepeningSearch(problem):
     from util import Counter
     from game import Actions
     from game import GameStateData
-    from searchAgents import PositionSearchProblem
     """
     Perform DFS with increasingly larger depth.
 
@@ -137,12 +136,12 @@ def iterativeDeepeningSearch(problem):
         seen_game_states.update({hash(current_board_state): current_board_state})
         while(current_max_depth >= current_depth):
             move_made_this_iteration=False
-            current_possible_actions = PositionSearchProblem.getActions(problem,current_board_state)
+            current_possible_actions = problem.getActions(current_board_state)
 
             if(current_possible_actions):
                 for i in range(len(current_possible_actions)):
                     if(not move_made_this_iteration):
-                        possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
+                        possible_new_board_state = problem.getResult(current_board_state,current_possible_actions[i])
                         if(possible_new_board_state not in seen_game_states.values()):
                             #make the move and update the problem
                             list_of_actions.push(current_possible_actions[i])
@@ -151,17 +150,17 @@ def iterativeDeepeningSearch(problem):
                             #seen_game_states[seen_game_states.argMax()+1] = current_board_state
                             move_made_this_iteration=True
                             current_depth+=1
-                            if(PositionSearchProblem.goalTest(problem, current_board_state)):
+                            if(problem.goalTest(current_board_state)):
                                 return list_of_actions.list
             if(not move_made_this_iteration):
                 if(list_of_actions.isEmpty()):
                     print 'something went wrong'
-                    return 'no solution'
+                    return None
                 most_recent_move=list_of_actions.pop()
-                current_board_state= PositionSearchProblem.getResult(problem,current_board_state,Actions.reverseDirection(most_recent_move))
+                current_board_state= problem.getResult(current_board_state,Actions.reverseDirection(most_recent_move))
                 if(current_depth == 0):
                     print 'something went wrong'
-                    return 'no solution'
+                    return None
                 current_depth-=1
         current_max_depth+=1
         current_depth=0
@@ -175,8 +174,6 @@ def aStarSearch(problem, heuristic=nullHeuristic):
     from util import Counter
 
     import copy
-    from searchAgents import PositionSearchProblem
-
 
     #initialization
     game_states_visited_plus_path_to_them=Counter()
@@ -189,14 +186,15 @@ def aStarSearch(problem, heuristic=nullHeuristic):
     possible_states_to_expand=PriorityQueue()
 
     #a list of possible actions that can be taken from the current board
-    current_possible_actions = PositionSearchProblem.getActions(problem,current_board_state)
+    print(current_board_state)
+    current_possible_actions = problem.getActions(current_board_state)
     print('here is what the board state looks like')
     print(current_board_state)
     #we now initialize the priorityque with a list of boardstate,action pairs
     #the priority is set internally but we could write a lamda function for it.
     for i in range(len(current_possible_actions)):
-        possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
-        priority=heuristic(possible_new_board_state,problem) + 1
+        possible_new_board_state = problem.getResult(current_board_state,current_possible_actions[i])
+        priority=heuristic(possible_new_board_state,problem) + problem.getCost(current_board_state,current_possible_actions[i])
         possible_states_to_expand.push((current_board_state,current_possible_actions[i]), priority * -1)
 
     print('initial set of possible move pairs')
@@ -217,17 +215,16 @@ def aStarSearch(problem, heuristic=nullHeuristic):
         current_direction = board_action_tuple[1]
 
         #complete the move to get the new board state to explore
-        new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_direction)
+        new_board_state = problem.getResult(current_board_state,current_direction)
 
         #we must get the list of moves used to get to the current board state first
         current_list_of_moves = game_states_visited_plus_path_to_them.get(hash(current_board_state))[1]
-        print(current_list_of_moves)
         #now we clone that stack and add the new move to it
         new_list_of_moves = copy.copy(current_list_of_moves)
         new_list_of_moves.append(current_direction)
 
         #check if the new_board_state wins the game
-        if(PositionSearchProblem.goalTest(problem, new_board_state)):
+        if(problem.goalTest(new_board_state)):
             return new_list_of_moves
 
         #check if that gamestate already exists,
@@ -244,12 +241,12 @@ def aStarSearch(problem, heuristic=nullHeuristic):
 
         #now we need to search out all the possible new moves and add it to the priorityque
         #first pull up a list of actions we can make from the new board state
-        current_possible_actions = PositionSearchProblem.getActions(problem,new_board_state)
+        current_possible_actions = problem.getActions(new_board_state)
         #check each move and add it to the priorityqueue
         for i in range(len(current_possible_actions)):
-            possible_new_board_state = PositionSearchProblem.getResult(problem,new_board_state,current_possible_actions[i])
+            possible_new_board_state = problem.getResult(new_board_state,current_possible_actions[i])
             if(hash(possible_new_board_state) != hash(current_board_state)):
-                priority=heuristic(possible_new_board_state,problem) + len(new_list_of_moves)+1
+                priority=heuristic(possible_new_board_state,problem) + problem.getCostOfActions(new_list_of_moves)+problem.getCost(new_board_state,current_possible_actions[i])
                 possible_states_to_expand.push((new_board_state,current_possible_actions[i]), priority * -1)
         # possible_new_board_state = PositionSearchProblem.getResult(problem,current_board_state,current_possible_actions[i])
         # game_states_visited.update({len(seen_game_states)+1 : current_board_state})
